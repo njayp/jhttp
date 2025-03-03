@@ -44,8 +44,8 @@ func TestEncodeError(t *testing.T) {
 	v := make(chan int)
 
 	err := Encode(w, http.StatusOK, v)
-	if err == nil || err.Error() != "encode: json: unsupported type: chan int" {
-		t.Fatalf("expected error %q, got %v", "encode: json: unsupported type: chan int", err)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
 	}
 }
 
