@@ -48,7 +48,8 @@ func TestDecode(t *testing.T) {
 	body, _ := json.Marshal(v)
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 
-	result, err := Decode[testStruct](r)
+	w := httptest.NewRecorder()
+	result, err := Decode[testStruct](w, r)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -59,12 +60,22 @@ func TestDecode(t *testing.T) {
 }
 
 func TestDecodeInvalid(t *testing.T) {
+	w := httptest.NewRecorder()
 	v := testStruct{}
 	body, _ := json.Marshal(v)
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 
-	_, err := Decode[testStruct](r)
+	_, err := Decode[testStruct](w, r)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
+	}
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %v, got %v", http.StatusBadRequest, w.Code)
+	}
+
+	expected := "validation: name is required\n"
+	if w.Body.String() != expected {
+		t.Fatalf("expected error message %q, got %q", expected, w.Body.String())
 	}
 }
