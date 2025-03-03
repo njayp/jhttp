@@ -33,6 +33,10 @@ func TestEncode(t *testing.T) {
 		t.Fatalf("expected status %v, got %v", http.StatusOK, w.Code)
 	}
 
+	if w.Header().Get("Content-Type") != "application/json" {
+		t.Fatalf("expected content type %q, got %q", "application/json", w.Header().Get("Content-Type"))
+	}
+
 	var result testStruct
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("expected no error decoding response, got %v", err)
@@ -40,6 +44,25 @@ func TestEncode(t *testing.T) {
 
 	if result.Name != v.Name {
 		t.Fatalf("expected name %v, got %v", v.Name, result.Name)
+	}
+}
+
+func TestEncodeError(t *testing.T) {
+	w := httptest.NewRecorder()
+	v := make(chan int)
+
+	err := Encode(w, http.StatusOK, v)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %v, got %v", http.StatusInternalServerError, w.Code)
+	}
+
+	expected := "encode json: json: unsupported type: chan int\n"
+	if w.Body.String() != expected {
+		t.Fatalf("expected error message %q, got %q", expected, w.Body.String())
 	}
 }
 
