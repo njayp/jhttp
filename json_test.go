@@ -3,7 +3,6 @@ package jhttp
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,13 +10,6 @@ import (
 
 type testStruct struct {
 	Name string `json:"name"`
-}
-
-func (t testStruct) Valid() error {
-	if t.Name == "" {
-		return errors.New("name is required")
-	}
-	return nil
 }
 
 func TestEncode(t *testing.T) {
@@ -52,17 +44,8 @@ func TestEncodeError(t *testing.T) {
 	v := make(chan int)
 
 	err := Encode(w, http.StatusOK, v)
-	if err == nil {
-		t.Fatalf("expected error, got nil")
-	}
-
-	if w.Code != http.StatusInternalServerError {
-		t.Fatalf("expected status %v, got %v", http.StatusInternalServerError, w.Code)
-	}
-
-	expected := "encode json: json: unsupported type: chan int\n"
-	if w.Body.String() != expected {
-		t.Fatalf("expected error message %q, got %q", expected, w.Body.String())
+	if err == nil || err.Error() != "encode: json: unsupported type: chan int" {
+		t.Fatalf("expected error %q, got %v", "encode: json: unsupported type: chan int", err)
 	}
 }
 
@@ -71,8 +54,7 @@ func TestDecode(t *testing.T) {
 	body, _ := json.Marshal(v)
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 
-	w := httptest.NewRecorder()
-	result, err := Decode[testStruct](w, r)
+	result, err := Decode[testStruct](r)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -83,22 +65,11 @@ func TestDecode(t *testing.T) {
 }
 
 func TestDecodeInvalid(t *testing.T) {
-	w := httptest.NewRecorder()
-	v := testStruct{}
-	body, _ := json.Marshal(v)
+	body := []byte(`{"invalid_json"}`)
 	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
 
-	_, err := Decode[testStruct](w, r)
+	_, err := Decode[testStruct](r)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
-	}
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %v, got %v", http.StatusBadRequest, w.Code)
-	}
-
-	expected := "validation: name is required\n"
-	if w.Body.String() != expected {
-		t.Fatalf("expected error message %q, got %q", expected, w.Body.String())
 	}
 }
